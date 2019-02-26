@@ -11,9 +11,17 @@ function xls2ofx {
 	xls2csv ${1}
 
 	# Extract the position of the fields in the CSV file
-	HEADERTAG="FECHA VALOR,"
+	FECHATAG="FECHA VALOR"
+	HEADERTAG="${FECHATAG},"
 	grep -B 4 "$HEADERTAG" ${CSV} > ${CSV}.header
-	FECHA=`grep "$HEADERTAG" ${CSV}.header | awk -F, '{ for (i=1; i<=NF; i++) { if ($i == "FECHA VALOR") print i; } }'`
+	if [ ! -s ${CSV}.header ]
+	then
+		FECHATAG="F. VALOR"
+		HEADERTAG="${FECHATAG},"
+		grep -B 4 "$HEADERTAG" ${CSV} > ${CSV}.header
+	fi
+
+	FECHA=`grep "$HEADERTAG" ${CSV}.header | awk -F, -v FECHATAG="${FECHATAG}" '{ for (i=1; i<=NF; i++) { if ($i == FECHATAG) print i; } }'`
 	DESCRIPCION=`grep "$HEADERTAG" ${CSV}.header | awk -F, '{ for (i=1; i<=NF; i++) { if (($i == "DESCRIPCION") || ($i == "DESCRIPCIÓN")) print i; } }'`
 	IMPORTE=`grep "$HEADERTAG" ${CSV}.header | awk -F, '{ for (i=1; i<=NF; i++) { if ($i == "IMPORTE (€)") print i; } }'`
 
@@ -21,7 +29,7 @@ function xls2ofx {
 	ACCTID=`grep "Número de cuenta:," ${CSV}.header | awk -F, '{ print $4; }'`
     if [[ $ACCTID == "" ]]
     then
-        ACCTID=`grep "Número de tarjeta:," ${CSV}.header | awk -F, '{ print $3; }'`
+        ACCTID=`grep "Número de tarjeta:" ${CSV}.header | awk -F, '{ print $3; }'`
     fi
 	BANKID="ING DIRECT"
 	rm ${CSV}.header
