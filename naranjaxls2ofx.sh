@@ -29,7 +29,7 @@ function xls2ofx {
 	ACCTID=`grep "Número de cuenta:," ${CSV}.header | awk -F, '{ print $4; }'`
     if [[ $ACCTID == "" ]]
     then
-        ACCTID=`grep "Número de tarjeta:" ${CSV}.header | awk -F, '{ print $3; }'`
+        ACCTID=`grep "Número de tarjeta:" ${CSV}.header | awk -F, '{ print $4; }'`
     fi
 	BANKID="ING DIRECT"
 	rm ${CSV}.header
@@ -53,6 +53,7 @@ function xls2ofx {
 
 	# Print header (all lines in the template until "___STMTTRN___")
 	IFS=''
+	FOUND=0
 	while read LINE
 	do
 		if [ "$LINE" == "          ___STMTTRN___" ] || [[ $FOUND -eq 1 ]]
@@ -133,11 +134,13 @@ function xls2ofx {
 
 if [ $# -eq 1 ]
 then
+	echo "Processing $1"
 	#xls2csv $1
 	xls2ofx $1 
 else
 	ls *.xls | while read F
 	do
+		echo "Processing $F"
 		#xls2csv $F
 		xls2ofx $F
 	done
