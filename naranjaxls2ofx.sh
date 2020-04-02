@@ -1,7 +1,12 @@
+#!/bin/ksh
+
+CSVSEP="|"
+
 function xls2csv {
 	unoconv -f csv ${1}
+	unoconv -f csv -e FilterOptions=124,34,76 ${1}
 	CSV=`echo $1 | sed 's/\.xls$/\.csv/'`
-	grep "^[0-9][0-9]/[0-9][0-9]/20[0-9][0-9]," ${CSV} > ${CSV}.out.csv
+	grep "^[0-9][0-9]/[0-9][0-9]/20[0-9][0-9]${CSVSEP}" ${CSV} > ${CSV}.out.csv
 }
 
 function xls2ofx {
@@ -12,24 +17,24 @@ function xls2ofx {
 
 	# Extract the position of the fields in the CSV file
 	FECHATAG="FECHA VALOR"
-	HEADERTAG="${FECHATAG},"
+	HEADERTAG="${FECHATAG}${CSVSEP}"
 	grep -B 4 "$HEADERTAG" ${CSV} > ${CSV}.header
 	if [ ! -s ${CSV}.header ]
 	then
 		FECHATAG="F. VALOR"
-		HEADERTAG="${FECHATAG},"
+		HEADERTAG="${FECHATAG}${CSVSEP}"
 		grep -B 4 "$HEADERTAG" ${CSV} > ${CSV}.header
 	fi
 
-	FECHA=`grep "$HEADERTAG" ${CSV}.header | awk -F, -v FECHATAG="${FECHATAG}" '{ for (i=1; i<=NF; i++) { if ($i == FECHATAG) print i; } }'`
-	DESCRIPCION=`grep "$HEADERTAG" ${CSV}.header | awk -F, '{ for (i=1; i<=NF; i++) { if (($i == "DESCRIPCION") || ($i == "DESCRIPCIÓN")) print i; } }'`
-	IMPORTE=`grep "$HEADERTAG" ${CSV}.header | awk -F, '{ for (i=1; i<=NF; i++) { if ($i == "IMPORTE (€)") print i; } }'`
+	FECHA=`grep "$HEADERTAG" ${CSV}.header | awk -F"${CSVSEP}" -v FECHATAG="${FECHATAG}" '{ for (i=1; i<=NF; i++) { if ($i == FECHATAG) print i; } }'`
+	DESCRIPCION=`grep "$HEADERTAG" ${CSV}.header | awk -F"${CSVSEP}" '{ for (i=1; i<=NF; i++) { if (($i == "DESCRIPCION") || ($i == "DESCRIPCIÓN")) print i; } }'`
+	IMPORTE=`grep "$HEADERTAG" ${CSV}.header | awk -F"${CSVSEP}" '{ for (i=1; i<=NF; i++) { if ($i == "IMPORTE (€)") print i; } }'`
 
 	# Extract the account Id
-	ACCTID=`grep "Número de cuenta:," ${CSV}.header | awk -F, '{ print $4; }'`
+	ACCTID=`grep "Número de cuenta:${CSVSEP}" ${CSV}.header | awk -F"${CSVSEP}" '{ print $4; }'`
     if [[ $ACCTID == "" ]]
     then
-        ACCTID=`grep "Número de tarjeta:" ${CSV}.header | awk -F, '{ print $4; }'`
+        ACCTID=`grep "Número de tarjeta:" ${CSV}.header | awk -F"${CSVSEP}" '{ print $4; }'`
     fi
 	BANKID="ING DIRECT"
 	rm ${CSV}.header
@@ -66,8 +71,7 @@ function xls2ofx {
 
 	# Print body
 	COUNTER=1
-	#cat ${CSV}.out.csv | tail -n +1 | awk -vFPAT='[^,]*|"[^"]*"' '{
-	cat ${CSV}.out.csv | tail -n +1 | awk -vFPAT='[^,]*|"[^"]*"' -v FECHA=$FECHA -v DESCF=$DESCRIPCION -v IMPORTE=$IMPORTE '{
+	cat ${CSV}.out.csv | tail -n +1 | awk -v FPAT='[^|]*|"[^"]*"' -v FECHA=$FECHA -v DESCF=$DESCRIPCION -v DESCF2=$(($DESCRIPCION + 1)) -v IMPORTE=$IMPORTE '{
 			DATE = $FECHA
 			sub(" Jan ", " 01 ", DATE);
 			sub(" Feb ", " 02 ", DATE);
@@ -92,6 +96,7 @@ function xls2ofx {
 			sub("\"", "", AMOUNT);
 
 			DESC=$DESCF;
+			if (DESC == "") DESC=$DESCF2;
 			sub("\"", "", DESC);
 			sub("\"", "", DESC);
 			sub("ó", "o", DESC);
